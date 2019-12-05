@@ -1,0 +1,61 @@
+
+//-------------------------------------------
+// Load Camera Configutation:
+//-------------------------------------------
+var camera_config_file = "/home/jsm/Software/ANTS2_SCRIPTS/GAGG_config_57Co.json"
+config.Load(camera_config_file)
+config.Replace( "GUI.ReconstructionWindow.PlotXYsettings.PlotXYbinsX", 300) // NOT working...
+
+//--------------------------------
+// Message to the user
+//--------------------------------
+msg.SetDialogTitle("Messages to the user")
+msg.SetFontSize( 12 )
+msg.Clear()
+msg.Append( " --------------------------------------------------------------------------")
+msg.Append( " ---   Adaptive algorithm for LRFs calculation demo  --- \n")
+msg.Append( " --------------------------------------------------------------------------")
+msg.Resize(1100, 600)
+msg.Move(1000, 200)
+
+// Manifest for the Line od point sources
+  var max_XY = 16
+  var step = 2
+   rec.ClearManifestItems()
+   for (var ixy=-max_XY; ixy <= max_XY; ixy+=step)
+   {
+           rec.AddRoundManisfetItem( ixy,  ixy,  1)
+   }
+
+  
+// STEPS GUIDE
+msg.SetFontSize( 14 )
+msg.Append("The camera configuration was loaded from file" + camera_config_file)
+msg.Append("It has a 3 mm thick GAGG:Ce crystal (with white finishing on the sides and a 2 mm Teflon plate in one face)")
+msg.Append("              1 mm thick lightguide")
+msg.Append("              8x8 SensL Array-C SiPMs (3x3mm)") 
+msg.Append("The radioactive source is 57 Co")
+msg.Append(" ")
+msg.Append("> You are encourage to follow the next steps in order to test the validity of the adaptive algorithm:")
+msg.Append(" ")
+msg.Append("STEP 1 - Flood Field Simulation: either load or run simulation (chose in the beginning of the script)")
+msg.Append("STEP 2 - Run the ITERATIVE ALGORITHM to calcultate the LRFs")
+msg.Append("STEP 3 - Line of point sources: 3.a Simulate OR 3.b Load")
+msg.Append("STEP 3.a - Simulate a Line of point sources and reconstructe them with the previously calculated LRFs")
+msg.Append("STEP 3.b - Load a Line of point sources already simulated for the above descrived camera configuration")
+msg.Append("STEP 4 - Using ANTS2 GUI, change some camera configuration. ")
+msg.Append("               E.g.: PM gains, lighguide thickness, override between crystal and paint")
+msg.Append("STEP 5 - Simulate again the same Line of point sources and reconstruct them with the existing LRFs")
+msg.Append("               Bad reconstruction is expected")
+msg.Append("STEP 6 - Simulate Floof Field for the new camera configuration")
+msg.Append("STEP 7 - Run the  ITERATIVE ALGORITHM to calculate the NEW LRFs")
+msg.Append("STEP 8 - Load the Line of point sources simulated in STEP 3 and reconstruct them using the NEW LRFs")
+msg.Append(" ")
+msg.Append("Three images with the Line of point sources reconstruction will be added to Basket and saved in the script directory")
+msg.Append("")
+msg.Append("> To see the Manifest items, please \"check in\" the \"Show Manifest\" option in the Reconstructed Window")
+msg.Append(" ")
+msg.Append("---------------------------------------------------------------------------------------")
+msg.Append("Log of the performed steps and messages to the user ")
+msg.Append("---------------------------------------------------------------------------------------")
+msg.Append("")
