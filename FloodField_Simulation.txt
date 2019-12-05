@@ -1,0 +1,45 @@
+
+// SELECT Either New Flood simulation Or simply Load some flood events. 
+
+var simulate_new_flood = false   // 'true' if new Flood simulation is to be performed.
+
+// Number of events for LFR reconstruction  
+var number_of_events_to_simulate = 15000 
+      
+if (simulate_new_flood == false)
+{
+       var file_flood = "/home/jsm/Software/Tests/25kEvents_57Co_Flood_Sim.root"
+       // 1. Load 25k flood events - for Camera config: /home/jsm/Software/Tests/GAGG_config_57Co.json
+       events.LoadEventsTree(file_flood)
+}
+else{
+        core.print("Acquiring/simulating flood again for the new LRFs...")
+     // ---------------------------------------------------------------------
+     //   Configure FLOOD FIELD simulation
+     // ---------------------------------------------------------------------
+ 
+       var source = 2 // 57Co
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Type" , 2) // Square (the first in the list of geometry shapes )
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Size1" , 16.6) // X size
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Size2" , 16.6) // Y size
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Size3" , -6.5)  // Z size
+
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].X", 0) // position X
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Y", 0) // position Y
+      config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Z", -6.5) // position Z
+      config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Theta", 0)
+      config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Phi" , 0)
+      config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[" + source + "].Psi" , 0)
+
+      // Number of events for LFR reconstruction  
+      // var number_of_events_to_simulate = 15000 
+      config.Replace( "SimulationConfig.ParticleSourcesConfig.SourceControlOptions.EventsToDo" , number_of_events_to_simulate)
+      
+      //----------------------------------------------------
+      // Run flood simulation for LRFs reconstruction
+      //----------------------------------------------------
+       events.ClearEvents()
+       //sim.RunParticleSources( )
+       sim.RunParticleSources( 7 ) //num thread as argument
+}
+

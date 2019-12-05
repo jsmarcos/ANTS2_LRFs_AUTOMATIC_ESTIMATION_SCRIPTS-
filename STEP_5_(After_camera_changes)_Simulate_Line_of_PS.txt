@@ -1,0 +1,89 @@
+//---------------------------------------------------------------------------------------------
+// Number of events per Point source in the grid of point sources
+//---------------------------------------------------------------------------------------------
+var number_of_events_to_simulate = 350
+config.Replace( "SimulationConfig.ParticleSourcesConfig.SourceControlOptions.EventsToDo" , number_of_events_to_simulate)
+
+//----------------------------------------------------------------
+// Directory to save the line of point sources.
+//----------------------------------------------------------------
+var dir_line_of_point_sources_sim = "/home/jsm/Software/Tests/Point_sources_diagonal/350_EventsPerNode_NEW/"
+custom.StartExternalProcess("mkdir", ["-m", "777", dir_line_of_point_sources_sim])
+//core.createDir( dir_grid_of_point_sources_sim )
+var fileEnd_root = ".root"
+
+//----------------------------------------
+// Simulation configurations
+//----------------------------------------
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].Z" , -4.5) //below the plane
+
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].CollTheta"  , 0) //emission direction: up
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].CollPhi" , 0)
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].Spread" , 0) //parallel beam
+
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[0].Activity" , 0) // 1st in the source list 
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[1].Activity" , 0) // 2nd in the source list
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].Activity" , 1) // 3rd in the source list // 57Co
+config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[3].Activity" , 0) // 4th in the source list - "1" means it is active. 
+
+config.Replace("SimulationConfig.ParticleSourcesConfig.ParticleSources[2].Type" , 0) // Point source (the first in the list of geometry shapes )
+
+sim.SetSeed( 254500 ) // SEEEEEEDDD 
+
+  //----------------------------------------------------------------------------------------------------------------------------------------
+  // SIMULATE a GRID of Point sources (in the upper quarter of the camera), for Spatial Resolution calculation
+  //----------------------------------------------------------------------------------------------------------------------------------------
+  events.ClearEvents()
+  
+  var max_XY = 16
+  var step = 2
+  //var max_Y = 17
+
+ // for (var ix=0; ix < max_X; ix+=3)
+    for (var ixy=-max_XY; ixy <= max_XY; ixy+=step)
+    {
+        config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].X" , ixy)
+        config.Replace( "SimulationConfig.ParticleSourcesConfig.ParticleSources[2].Y" , ixy)
+      
+        sim.RunParticleSources( )
+        //rec.ReconstructEvents( )
+        var name = dir_line_of_point_sources_sim + "point_x"+ ixy+ "_y" + ixy + fileEnd_root
+        sim.SaveAsTree(name)
+      
+        events.ClearEvents()
+  }
+
+ core.print("Line of point sources simulated and saved at: " + dir_line_of_point_sources_sim)
+
+//-----------------------------------------------------
+// Reconstruct with the current LFRs
+//-----------------------------------------------------
+       core.print("Reconstructing line of point sources using the current LRFs...")
+
+       var root_files_ps = core.SetNewFileFinder( dir_line_of_point_sources_sim,  "*.root" )
+       //root_files = core.GetNewFiles() 
+       core.print("Num .root files: " +  root_files_ps.length)
+       for (var f = 0; f <  root_files_ps.length; f++)
+       {
+              core.print(dir_line_of_point_sources_sim + root_files_ps[f])
+              events.LoadEventsTree(dir_line_of_point_sources_sim + root_files_ps[f], true)   
+       }
+
+       rec.ReconstructEvents()
+
+//-------------------------------------------------------------------------------------------------------
+// Save image of reconsctructed line of point sources and add to Basket
+//-------------------------------------------------------------------------------------------------------
+       //grwin.ClearBasket()
+       grwin.PlotDensityXY( )
+       grwin.AddToBasket("New_Line_of_point_sources_original_LRFs_2nd")
+       grwin.SaveImage(dir_line_of_point_sources_sim + "new_line_of_point_sources_original_LRFs_2nd.tiff")
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------
+// Invite user to change camera configuration on purpose to see that the current LRFs are not adequate
+//-----------------------------------------------------------------------------------------------------------------------------------------------------
+msg.Append("STEP 4 assumed to be done: User changes in GUI to the camera config")
+msg.Append("STEP 5 done: New Line of point sources was simulated for the NEW (changed) camera")
+msg.Append("> It should be visible that after the camera configuration the previous LRFs are not adequate for reconstruct events from the NEW camera")
+msg.Append("> There is need for new LRFs. Proceed for STEP 6: Flood Field Simulation")
+msg.Append("> ATTENTION: change the variable 'simulate_new_flood' to TRUE")

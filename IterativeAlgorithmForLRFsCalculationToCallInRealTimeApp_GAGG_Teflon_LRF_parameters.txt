@@ -1,0 +1,133 @@
+//-------------------------------------------------
+// Auxiliar functions and variables
+//-------------------------------------------------
+function exponentialGrow(a, b, x) // 'a' original value; 'b': decay factor; 'x' time (or iteration)
+{
+      var  y = a * math.pow((1+b), x)
+       return y
+}
+
+var a = 9 // dynamic range (range at where the PMs are considered as passive - from the centroid position calculated for the reconstrcuted event)
+var b = 0.025 // exponential factor
+
+
+//-------------------------------------------------------------------------------------------------
+// Implementation of the Adaptive algorithm for LRFs calculation
+//-------------------------------------------------------------------------------------------------
+function adaptiveAlgorithmForLRFsCalculation1()
+{
+
+// 1. Select CoG, Rec, and select ML GPU Rec.
+config.Replace(  "ReconstructionConfig.ReconstructionOptions[0].AlgorithmOptions.Algorithm" ,  0 ) // Center of gravity
+//-----------------------------------------------------------------------
+rec.ReconstructEvents() // CoG RECONSTRUCTION
+//-----------------------------------------------------------------------
+config.Replace(  "ReconstructionConfig.ReconstructionOptions[0].AlgorithmOptions.Algorithm" ,  4 )  //  Maximum Likelihood - GPU Contracting grids.
+
+// 2. Make LRFs using CoG as the 1st guess on the events positions.
+// 2.1. Options: First two iterations using common LRFs (PM groupping with one LRFs for all PMs):
+config.Replace( "ReconstructionConfig.LRFmakeJson.DataSelector", 1) // Use Reconstructed data
+config.Replace( "ReconstructionConfig.LRFmakeJson.UseGroupping", true) // Use PMs groupping ("common") - for some iterations
+config.Replace( "ReconstructionConfig.LRFmakeJson.GroupingOption", "One LRF for all PMs") // Type of groupping: One LRF for all PMs
+
+// 2.2. Options: Guarantee regularization options are switched ON
+config.Replace("ReconstructionConfig.LRFmakeJson.ForceZeroDeriv" , true)
+config.Replace( "ReconstructionConfig.LRFmakeJson.ForceNonNegative"  , true)
+config.Replace("ReconstructionConfig.LRFmakeJson.ForceNonIncreasingInR"  , true)
+
+// The LRF parameters below should be defined in the main script that calls this Interative Algorithm "sub-script"
+// if the variables names of the parameters are redefined here, the values defined inthe main script will not be used and the possible changes here will not be recognized in the main script as well.
+// var compression_factor = 6
+// var compression_lam_smoothness = 5.1
+// var compression_r0_switchover = 3
+
+
+// LRFs options for GAGG:Ce squared camera 33.2 x 33.2 x 3 mm^3 (under illumination of 122 keV -> 57Co)  - NOTE: the choice of the parameters can be an automatic procedure...
+config.Replace(  "ReconstructionConfig.LRFmakeJson.LRF_type" , 0) //Radial LRFs
+config.Replace(  "ReconstructionConfig.LRFmakeJson.LRF_compress" , true) // Use radial compression
+config.Replace(  "ReconstructionConfig.LRFmakeJson.Nodes_x" , 10) // Number of nodes along the radius: 10
+config.Replace(  "ReconstructionConfig.LRFmakeJson.Compression_k" , compression_factor) // Compression factor = 6
+config.Replace(  "ReconstructionConfig.LRFmakeJson.Compression_r0" , compression_r0_switchover) // Switchover = 3
+config.Replace( "ReconstructionConfig.LRFmakeJson.Compression_lam" , compression_lam_smoothness) // Smoothness = 4.5
+
+
+// 2.3. Options: Without reconsctruct energy... in the beginning and also in the middle of the iteractive process... decide on this later.
+config.Replace( "ReconstructionConfig.LRFmakeJson.UseEnergy", false)
+
+// 2.4 Options: Data selector -> use reconstructed data:
+config.Replace("ReconstructionConfig.LRFmakeJson.DataSelector", 1)
+
+
+var stopping_chi2_difference = 0.0001
+var previous_average_chi2 = 99999
+var stopping_criteria_reached = false
+// START CYCLE (At this stage there is the 1st guess on LRFs from CoG) - later the first guess can be as option from the previous LRFs (for real-time)
+// Make a cycle that finished when the stopping criteria is reached.
+
+// For test, use as stopping criteria a maximum number of iterations. Say, 16
+var max_num_of_iterations = 45
+var iter = 0
+for (iter  = 0; iter < max_num_of_iterations && (stopping_criteria_reached == false) || iter < 7; iter++)  // Use other stopping criteria: diff between average chi2 from two iterations...
+{
+       
+lrf.Make() // Using the options in GUI. Typically for 64 SiPMs camera with GAGG:Ce -> num nodes: 10, comp. factor: 6, switchover: 3 or 4 and smoothness: 4 or 5.
+
+// 3. Reconstruct events with the newly calculated LRFs (using Maximum Likelihood)
+
+// 3.1 Options: Start with Dynamic range (distance limit low and gradually increase it)
+var dynamic_range = exponentialGrow(a, b, iter)
+//config.Replace("ReconstructionConfig.ReconstructionOptions[0].DynamicPassives.DistanceLimit", 9 + iter) 
+if (dynamic_range < 16) // Select the maximum allowable dynamic_range (here it is 16) mm.
+       config.Replace("ReconstructionConfig.ReconstructionOptions[0].DynamicPassives.DistanceLimit", dynamic_range) 
+ 
+rec.ReconstructEvents()
+
+// 4. Filter out by Chi2.
+
+// If Chi2 is within 90% of lower Chi2 events, consider as GOOD 
+custom.filterOutByChi2PercentageOfHigher(0.95, 100) // 1st argument: percentage of events to be considered as Bad | 2nd argument: ROOT Global settings for num bins in X.
+
+// 5. Blur (decrease the amount...) 
+
+var sigma = 1
+if (iter > 3)
+{
+   // Start using individual LRFs.
+   config.Replace( "ReconstructionConfig.LRFmakeJson.UseGroupping", false) // 
+   // Change the range of blurring
+   sigma = 0.5
+ }  
+config.Replace( "GUI.ReconstructionWindow.Blur.BlurSigma", 1) 
+config.Replace( "GUI.ReconstructionWindow.Blur.BlurType" , 1)   // 0: Uniform, 1: Gaussian
+rec.DoBlurGauss( sigma,  false ) // 1st argument: sigma, 2nd: fUpdateFilters  ->  From the 3rd iteration decrease to 0.5
+
+// 6. Stopping criteria: is Chi2 converging? Compare with the previous iteration.
+// Get the avegare Chi2 value
+// USE this function -> events.GetStatistics( igroup ) : Returns (if available) an array with GoodEvents, Average_Chi2, Average_XY_deviation
+var events_statistics_array = events.GetStatistics(0) //HOW to get the current PMs groups with sciprting functions?
+var current_average_chi2 = events_statistics_array[1]
+
+var chi2_squared_difference_between_iterations  = math.pow(previous_average_chi2 - current_average_chi2, 2)
+if( chi2_squared_difference_between_iterations < stopping_chi2_difference)
+       stopping_criteria_reached = true
+
+previous_average_chi2 = current_average_chi2
+//chi2_squared_difference_between_iterations = stopping_chi2_difference 
+
+}// End of cycle
+
+core.print("num of iterations: " + iter + ". stopping_chi2_difference: " + stopping_chi2_difference)
+} // End of function.
+
+//---------------------------------------------------
+// CALL adaptive algorithm function
+//---------------------------------------------------
+adaptiveAlgorithmForLRFsCalculation1()
+
+//-------------------------------
+// Message to the user
+//-------------------------------
+//msg.Append("> Iterative algorithm finishes its performance. NEW LRFs are available. ")
+//gui.messageBox("Iterative algorithm finishes its performance.\nNEW LRFs are available.")
+
+

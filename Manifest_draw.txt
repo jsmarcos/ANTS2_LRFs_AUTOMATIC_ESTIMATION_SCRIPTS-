@@ -1,0 +1,38 @@
+/*
+  var max_XY = 16
+  var step = 2
+
+rec.ClearManifestItems( )
+ // for (var ix=0; ix < max_X; ix+=3)
+//rec.SetManifestItemLineProperties(0, "red", 1, 1)
+    for (var ixy=-max_XY; ixy <= max_XY; ixy+=step)
+    {
+              var x = ixy
+              var y = ixy
+              
+              // Draw circle in the X and Y position:
+              rec.AddRoundManisfetItem( x,  y,  1 )
+  }
+
+rec.ReconstructEvents()
+
+*/
+rec.ClearManifestItems( )
+
+   var dir_line_of_point_sources_sim = "/home/jsm/Software/Tests/Point_sources_diagonal/350_EventsPerNode/"
+
+   var root_files_load = core.SetNewFileFinder( dir_line_of_point_sources_sim,  "*.root" )
+
+       core.print("Num .root files: " +  root_files_load.length)
+       for (var f = 0; f <  root_files_load.length; f++)
+       {
+              core.print(dir_line_of_point_sources_sim + root_files_load[f])
+              events.LoadEventsTree(dir_line_of_point_sources_sim + root_files_load[f], true)   
+       }
+
+  for (var ixy=-max_XY; ixy <= max_XY; ixy+=step)
+    {
+       rec.AddRoundManisfetItem( ixy,  ixy,  1)
+
+  }
+  //rec.SetManifestItemLineProperties(2, "green", 2, 2)
